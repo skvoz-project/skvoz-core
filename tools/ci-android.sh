@@ -2,7 +2,7 @@
 # Runs inside the pinned Rust supplier container with /src read-only and /out writable.
 set -eu
 unset RUSTFLAGS CARGO_ENCODED_RUSTFLAGS
-export CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0 CARGO_PROFILE_RELEASE_DEBUG=0
+export CARGO_INCREMENTAL=0 CARGO_PROFILE_RELEASE_DEBUG=0
 mkdir -p /out/acquire /out/unzip
 cd /out/acquire
 apt-get -o APT::Sandbox::User=root update -qq

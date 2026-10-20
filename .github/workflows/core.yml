@@ -26,21 +26,15 @@ jobs:
           container="core-linux-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           trap 'status=$?; sh tools/ci-cleanup.sh "$container" || status=1; exit "$status"' EXIT
           timeout --signal=TERM --kill-after=10s 1500s docker run --rm --name "$container" \
-            --cpus=2 --memory=3g --memory-swap=3g --pids-limit=256 \
             --ulimit core=0 --cap-drop=ALL --security-opt=no-new-privileges:true \
             --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/src,readonly" \
             --mount "type=bind,src=$CORE_OUTPUT,dst=/out" \
             --env CARGO_HOME=/out/cargo --env CARGO_TARGET_DIR=/out/target \
             --env SKVOZ_CORE_SOURCE_REVISION="$GITHUB_SHA" \
             --env GIT_CONFIG_COUNT=1 --env GIT_CONFIG_KEY_0=safe.directory --env GIT_CONFIG_VALUE_0=/src \
-            --env CARGO_BUILD_JOBS=1 --env CARGO_INCREMENTAL=0 --workdir /src \
+            --env CARGO_INCREMENTAL=0 --workdir /src \
             rust:1.92.0-bookworm@sha256:e90e846de4124376164ddfbaab4b0774c7bdeef5e738866295e5a90a34a307a2 \
             sh -eu -c '
-              test "$(cat /sys/fs/cgroup/cpu.max)" = "200000 100000"
-              test "$(cat /sys/fs/cgroup/memory.max)" = "3221225472"
-              test "$(cat /sys/fs/cgroup/memory.swap.max)" = 0
-              test "$(cat /sys/fs/cgroup/pids.max)" = 256
-              cat /sys/fs/cgroup/cpu.max /sys/fs/cgroup/memory.max /sys/fs/cgroup/memory.swap.max
               mkdir -p /out/acquire
               curl --fail --location --output /out/acquire/nats.tar.gz https://github.com/nats-io/nats-server/releases/download/v2.15.1/nats-server-v2.15.1-linux-amd64.tar.gz
               echo "bf5edc7b1ce98e885c368cb43a886eb148dc5d0551d99f3cf6141fb5e1954c70  /out/acquire/nats.tar.gz" | sha256sum -c -
@@ -89,7 +83,6 @@ jobs:
           container="core-android-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           trap 'status=$?; sh tools/ci-cleanup.sh "$container" || status=1; exit "$status"' EXIT
           timeout --signal=TERM --kill-after=10s 3300s docker run --rm --name "$container" \
-            --cpus=2 --memory=3g --memory-swap=3g --pids-limit=256 \
             --ulimit core=0 --cap-drop=ALL --security-opt=no-new-privileges:true \
             --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/src,readonly" \
             --mount "type=bind,src=$CORE_OUTPUT,dst=/out" \
@@ -99,10 +92,6 @@ jobs:
             --workdir /src \
             rust:1.92.0-bookworm@sha256:e90e846de4124376164ddfbaab4b0774c7bdeef5e738866295e5a90a34a307a2 \
             sh -eu -c '
-              test "$(cat /sys/fs/cgroup/cpu.max)" = "200000 100000"
-              test "$(cat /sys/fs/cgroup/memory.max)" = "3221225472"
-              test "$(cat /sys/fs/cgroup/memory.swap.max)" = 0
-              test "$(cat /sys/fs/cgroup/pids.max)" = 256
               sh tools/ci-android.sh
             '
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -135,19 +124,14 @@ jobs:
           container="core-linux-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           trap 'status=$?; sh tools/ci-cleanup.sh "$container" || status=1; exit "$status"' EXIT
           timeout --signal=TERM --kill-after=10s 600s docker run --rm --name "$container" \
-            --cpus=2 --memory=3g --memory-swap=3g --pids-limit=256 \
             --ulimit core=0 --cap-drop=ALL --security-opt=no-new-privileges:true \
             --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/src,readonly" \
             --mount "type=bind,src=$CORE_INPUTS,dst=/inputs,readonly" \
             --mount "type=bind,src=$CORE_OUTPUT,dst=/out" \
             --env CARGO_HOME=/out/cargo --env CARGO_TARGET_DIR=/out/target \
-            --env CARGO_BUILD_JOBS=1 --env CARGO_INCREMENTAL=0 --workdir /src \
+            --env CARGO_INCREMENTAL=0 --workdir /src \
             rust:1.92.0-bookworm@sha256:e90e846de4124376164ddfbaab4b0774c7bdeef5e738866295e5a90a34a307a2 \
             sh -eu -c '
-              test "$(cat /sys/fs/cgroup/cpu.max)" = "200000 100000"
-              test "$(cat /sys/fs/cgroup/memory.max)" = "3221225472"
-              test "$(cat /sys/fs/cgroup/memory.swap.max)" = 0
-              test "$(cat /sys/fs/cgroup/pids.max)" = 256
               unset SKVOZ_CORE_SOURCE_REVISION
               for target in x86_64-unknown-linux-gnu aarch64-linux-android x86_64-linux-android; do
                 destination="/out/fixtures/$target"

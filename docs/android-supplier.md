@@ -35,13 +35,16 @@ NDK r30 revision 30.0.16248370, minimum API 31, ELF LOAD alignment 16384.
 упаковщик записывает также hashes реально установленных target std files,
 clang и llvm-ar. Для Core не нужны Gradle, JDK или Android SDK platform packages.
 
-Подготовка и сборки выполняются последовательно в ограниченной среде:
+Следующий пример предназначен для локальной проверки. Подготовка и сборки
+выполняются последовательно в ограниченной среде:
 до4 CPU,3 GiB RAM, без swap, PID256 и один Cargo job; подготовка и каждый target
 имеют отдельный конечный deadline до900 секунд. Проверяйте фактические cgroup
 limits и cleanup, а не только параметры запуска. Пример ниже предполагает
 стандартный Cargo `target/`, подготовленный registry и абсолютные пути без пробелов.
 Host Rust toolchain должен быть доступен read-only как `/toolchain`: на него
-указывает host rustlib link подготовленного sysroot.
+указывает host rustlib link подготовленного sysroot. GitHub supplier запускает
+`tools/ci-android.sh` в закреплённом Docker image с ресурсами runner, без
+локальных cgroup/I/O предпосылок; версии, target-проверки и deadlines сохраняются.
 
 Сначала соберите host-инструмент без target `RUSTFLAGS` и подготовьте общий staging:
 
