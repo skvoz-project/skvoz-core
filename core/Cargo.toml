@@ -1,0 +1,33 @@
+[package]
+name = "skvoz-core"
+version = "5.0.0"
+description = "Deterministic, bounded byte-stream state engine for SKVOZ"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[features]
+default = []
+fault-injection = ["nats"]
+nats = ["dep:async-nats", "dep:futures-util", "dep:tokio", "dep:getrandom", "dep:rustls-native-certs", "dep:skvoz-core-tls", "skvoz-core-contracts/runtime"]
+
+[dependencies]
+skvoz-core-contracts = { path = "../contracts" }
+skvoz-core-tls = { path = "../tls", optional = true }
+async-nats = { version = "=0.50.0", default-features = false, features = ["ring"], optional = true }
+futures-util = { version = "=0.3.34", default-features = false, features = ["std"], optional = true }
+tokio = { version = "=1.53.1", features = ["time", "sync", "macros"], optional = true }
+
+getrandom = { version = "=0.4.3", optional = true }
+rustls-native-certs = { version = "=0.8.4", optional = true }
+
+[[example]]
+name = "runtime_profile"
+required-features = ["nats"]
+
+[dev-dependencies]
+tokio = { version = "=1.53.1", features = ["rt", "macros"] }

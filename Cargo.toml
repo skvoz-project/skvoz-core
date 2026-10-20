@@ -1,0 +1,16 @@
+[workspace]
+members = ["core", "daemon", "connectors/tcp", "contracts", "tls", "abi", "binding", "testbench", "tools", "test-support"]
+resolver = "3"
+default-members = ["core", "contracts", "tls", "abi"]
+exclude = ["vendor/async-nats"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.92"
+license = "MIT"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[patch.crates-io]
+async-nats = { path = "vendor/async-nats" }

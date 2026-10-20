@@ -1,0 +1,25 @@
+[package]
+name = "skvoz-core-abi"
+version = "5.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+name = "skvoz_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+skvoz-core = { path = "../core", features = ["nats"] }
+skvoz-core-contracts = { path = "../contracts", features = ["runtime", "codec"] }
+serde = "=1.0.228"
+serde_json = "=1.0.151"
+tokio = { version = "=1.53.1", features = ["rt-multi-thread", "net", "time", "sync"] }
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[dev-dependencies]
+skvoz-core = { path = "../core", features = ["fault-injection"] }
+skvoz-core-test-support = { path = "../test-support" }

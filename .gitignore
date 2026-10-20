@@ -1,0 +1,12 @@
+target/
+.idea/
+**/temp/
+AGENTS.md
+**/.knowledge/
+.agents/
+.codex/
+.aws/
+__pycache__/
+*.py[cod]
+*.log
+*.tmp

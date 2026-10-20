@@ -1,0 +1,28 @@
+{
+  "rust_version": "1.92.0",
+  "rust_distribution": "2025-12-11",
+  "ndk_revision": "30.0.16248370",
+  "ndk_url": "https://dl.google.com/android/repository/android-ndk-r30-linux.zip",
+  "ndk_archive_bytes": 738633529,
+  "ndk_archive_sha1": "5107f898313790e449e87eee2183d9a20602dee9",
+  "minimum_api": 31,
+  "page_alignment": 16384,
+  "targets": {
+    "aarch64-linux-android": {
+      "android_abi": "arm64-v8a",
+      "elf_machine": "AArch64",
+      "clang": "aarch64-linux-android31-clang",
+      "rust_std_url": "https://static.rust-lang.org/dist/2025-12-11/rust-std-1.92.0-aarch64-linux-android.tar.xz",
+      "rust_std_bytes": 26305336,
+      "rust_std_sha256": "ce6350bd43856c630773c93e40310989c6cb98a1178233c44e512a31761943d0"
+    },
+    "x86_64-linux-android": {
+      "android_abi": "x86_64",
+      "elf_machine": "Advanced Micro Devices X86-64",
+      "clang": "x86_64-linux-android31-clang",
+      "rust_std_url": "https://static.rust-lang.org/dist/2025-12-11/rust-std-1.92.0-x86_64-linux-android.tar.xz",
+      "rust_std_bytes": 29505632,
+      "rust_std_sha256": "ffd39429435ff2f0763b940dd6afb4b9ccb1ed443eeef4fff9f1e9b3c5730026"
+    }
+  }
+}
