@@ -286,46 +286,156 @@ fn exact_release_archives_and_fail_closed_publication() {
     );
 }
 
-#[test]
-fn ci_cleanup_requires_exact_absence_and_own_container_name() {
+fn cleanup_fixture(label: &str) -> Directory {
     let scratch = Directory(
-        std::env::temp_dir().join(format!("core-cleanup-contract-{}", std::process::id())),
+        std::env::temp_dir().join(format!("core-cleanup-{label}-{}", std::process::id())),
     );
     fs::create_dir(&scratch.0).unwrap();
-    fs::write(scratch.0.join("docker"), "#!/bin/sh\nset -eu\nif [ \"$1\" = rm ]; then exit 0; fi\nif [ \"${MOCK_PRESENT:-0}\" = 1 ]; then echo remaining; exit 0; fi\nif [ \"${MOCK_DAEMON_BAD:-0}\" = 1 ]; then echo 'Docker daemon unavailable' >&2; exit 1; fi\necho \"Error response from daemon: No such container: $5\" >&2\nexit 1\n").unwrap();
+    fs::create_dir(scratch.0.join("temporary")).unwrap();
+    fs::write(
+        scratch.0.join("docker"),
+        r#"#!/bin/sh
+set -eu
+printf '%s\n' "$*" >> "$MOCK_LOG"
+if [ "$1" = rm ]; then exit 0; fi
+printf '%b' "$MOCK_OUT"
+printf '%b' "$MOCK_ERROR" >&2
+exit "$MOCK_EXIT"
+"#,
+    )
+    .unwrap();
     fs::set_permissions(scratch.0.join("docker"), fs::Permissions::from_mode(0o755)).unwrap();
-    let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("ci-cleanup.sh");
-    let cleanup = |name: &str| {
-        let mut command = Command::new("sh");
-        command
-            .arg(&script)
-            .arg(name)
-            .env("GITHUB_RUN_ID", "42")
-            .env("GITHUB_RUN_ATTEMPT", "1")
-            .env(
-                "PATH",
-                format!("{}:{}", scratch.0.display(), std::env::var("PATH").unwrap()),
-            );
-        command
-    };
-    ok(cleanup("core-linux-42-1").output().unwrap());
+    scratch
+}
+fn cleanup_command(scratch: &Path) -> Command {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let mut command = Command::new("sh");
+    command
+        .current_dir(root)
+        .env("GITHUB_RUN_ID", "42")
+        .env("GITHUB_RUN_ATTEMPT", "1")
+        .env("container", "core-linux-42-1")
+        .env("TMPDIR", scratch.join("temporary"))
+        .env("MOCK_LOG", scratch.join("calls"))
+        .env("MOCK_OUT", "\n")
+        .env(
+            "MOCK_ERROR",
+            "Error response from daemon: No such container: core-linux-42-1\n",
+        )
+        .env("MOCK_EXIT", "1")
+        .env(
+            "PATH",
+            format!("{}:{}", scratch.display(), std::env::var("PATH").unwrap()),
+        );
+    command
+}
+#[test]
+fn ci_cleanup_requires_exact_absence_and_own_container_name() {
+    let scratch = cleanup_fixture("absence");
+    let missing = "Error response from daemon: No such container: core-linux-42-1\n";
+    for (stdout, stderr, status, diagnostic) in [
+        ("\n", missing, "1", None),
+        ("", missing, "1", None),
+        (" \t\n", missing, "1", None),
+        ("remaining\n", "", "0", Some("remains after cleanup")),
+        ("remaining\n", missing, "1", Some("unexpected stdout")),
+        ("\\000", missing, "1", Some("unexpected stdout")),
+        (
+            "",
+            "permission denied while connecting to Docker socket\n",
+            "1",
+            Some("unexpected error"),
+        ),
+        (
+            "",
+            "Cannot connect to Docker daemon\n",
+            "1",
+            Some("unexpected error"),
+        ),
+        (
+            "",
+            "Error response from daemon: No such container: another-container\n",
+            "1",
+            Some("unexpected error"),
+        ),
+        (
+            "",
+            "Error response from daemon: No such container: core-linux-42-1\nextra\n",
+            "1",
+            Some("unexpected error"),
+        ),
+        (
+            "",
+            "Error response from daemon: No such container: core-linux-42-1",
+            "1",
+            Some("unexpected error"),
+        ),
+        ("", missing, "2", Some("status 2")),
+        ("", missing, "124", Some("status 124")),
+        ("", missing, "137", Some("status 137")),
+    ] {
+        let result = cleanup_command(&scratch.0)
+            .args(["tools/ci-cleanup.sh", "core-linux-42-1"])
+            .env("MOCK_OUT", stdout)
+            .env("MOCK_ERROR", stderr)
+            .env("MOCK_EXIT", status)
+            .output()
+            .unwrap();
+        if let Some(diagnostic) = diagnostic {
+            fails(result, diagnostic);
+        } else {
+            ok(result);
+        }
+        assert!(
+            fs::read_dir(scratch.0.join("temporary"))
+                .unwrap()
+                .next()
+                .is_none()
+        );
+    }
+    let rejected = scratch.0.join("rejected-calls");
     fails(
-        cleanup("unrelated").output().unwrap(),
-        "Unexpected supplier",
-    );
-    fails(
-        cleanup("core-linux-42-1")
-            .env("MOCK_PRESENT", "1")
+        cleanup_command(&scratch.0)
+            .args(["tools/ci-cleanup.sh", "unrelated"])
+            .env("MOCK_LOG", &rejected)
             .output()
             .unwrap(),
-        "remains after cleanup",
+        "Unexpected supplier",
     );
+    assert!(!rejected.exists());
+}
+#[test]
+fn ci_cleanup_preserves_actual_workflow_payload_status() {
+    let scratch = cleanup_fixture("payload");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let workflow = fs::read_to_string(root.join(".github/workflows/core.yml")).unwrap();
+    let traps: Vec<_> = workflow
+        .lines()
+        .map(str::trim)
+        .filter(|line| line.starts_with("trap '"))
+        .collect();
+    assert!(!traps.is_empty());
+    for trap in traps {
+        for payload in [0, 37] {
+            let result = cleanup_command(&scratch.0)
+                .args(["-c", &format!("set -eu\n{trap}\nexit {payload}")])
+                .output()
+                .unwrap();
+            assert_eq!(result.status.code(), Some(payload), "{result:?}");
+        }
+        fails(
+            cleanup_command(&scratch.0)
+                .args(["-c", &format!("set -eu\n{trap}\nexit 0")])
+                .env("MOCK_ERROR", "Docker socket permission denied\n")
+                .output()
+                .unwrap(),
+            "unexpected error",
+        );
+    }
     assert!(
-        !cleanup("core-linux-42-1")
-            .env("MOCK_DAEMON_BAD", "1")
-            .output()
+        fs::read_dir(scratch.0.join("temporary"))
             .unwrap()
-            .status
-            .success()
+            .next()
+            .is_none()
     );
 }
