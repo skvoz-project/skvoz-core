@@ -1,6 +1,159 @@
 //! Verify the public supplier package against actual files and immutable outputs.
 use std::{fs, path::PathBuf, process::Command};
 
+#[cfg(unix)]
+#[test]
+fn android_packaging_accepts_cargo_scheduling_choices() {
+    use std::os::unix::fs::PermissionsExt;
+
+    // Mock archive/tool transport: this checks packaging policy, not native ELF bytes.
+    let directory = Directory::new("android-scheduling");
+    let pins: serde_json::Value =
+        serde_json::from_str(include_str!("../android-profiles.json")).unwrap();
+    let bin = directory.0.join("bin");
+    let ndk = directory.0.join("ndk");
+    let ndk_bin = ndk.join("toolchains/llvm/prebuilt/linux-x86_64/bin");
+    let sysroot = directory.0.join("sysroot");
+    fs::create_dir(&bin).unwrap();
+    fs::create_dir_all(&ndk_bin).unwrap();
+    fs::write(
+        ndk.join("source.properties"),
+        "Pkg.Revision = 30.0.16248370\n",
+    )
+    .unwrap();
+    fs::write(ndk_bin.join("clang-21"), "compiler fixture").unwrap();
+    fs::write(ndk_bin.join("llvm-ar"), "archiver fixture").unwrap();
+    let ndk_archive = directory.0.join("ndk.zip");
+    fs::File::create(&ndk_archive)
+        .unwrap()
+        .set_len(pins["ndk_archive_bytes"].as_u64().unwrap())
+        .unwrap();
+    let executable = |path: &std::path::Path, body: &str| {
+        fs::write(path, format!("#!/bin/sh\nset -eu\n{body}\n")).unwrap();
+        fs::set_permissions(path, fs::Permissions::from_mode(0o755)).unwrap();
+    };
+    executable(
+        &bin.join("sha1sum"),
+        &format!("echo {}", pins["ndk_archive_sha1"].as_str().unwrap()),
+    );
+    executable(
+        &bin.join("sha256sum"),
+        "case $1 in *.tar.xz) echo \"$TEST_STD_SHA256\";; */ndk.zip) echo 0000000000000000000000000000000000000000000000000000000000000000;; *) exec /usr/bin/sha256sum \"$@\";; esac",
+    );
+    executable(&bin.join("rustc"), "echo 'rustc 1.92.0 (fixture)'");
+    executable(&bin.join("cargo"), "echo 'cargo 1.92.0 (fixture)'");
+    executable(
+        &bin.join("readelf"),
+        "case $1 in
+          -h) printf 'Class: ELF64\nMachine: %s\n' \"$TEST_MACHINE\";;
+          -d) echo '(NEEDED) Shared library: [libc.so]' ;;
+          --version-info|--notes) :;;
+          -lW) echo 'LOAD 0x0 0x0 0x0 0x100 0x100 R 0x4000';;
+          --dyn-syms) for name in version capabilities buffer_free runtime_new runtime_free start poll operation_free call events; do
+            echo \"1: 0 1 FUNC GLOBAL DEFAULT 1 skvoz_core_v1_$name\"
+          done;;
+          *) exit 1;;
+        esac",
+    );
+    let library = directory.0.join("libskvoz_core.so");
+    fs::write(&library, "library fixture").unwrap();
+    for target in ["aarch64-linux-android", "x86_64-linux-android"] {
+        let profile = &pins["targets"][target];
+        let target_std = sysroot.join("lib/rustlib").join(target).join("lib");
+        fs::create_dir_all(&target_std).unwrap();
+        fs::write(target_std.join("libstd.rlib"), "target std fixture").unwrap();
+        let std_archive = directory.0.join(format!("{target}.tar.xz"));
+        fs::File::create(&std_archive)
+            .unwrap()
+            .set_len(profile["rust_std_bytes"].as_u64().unwrap())
+            .unwrap();
+        let clang = ndk_bin.join(profile["clang"].as_str().unwrap());
+        executable(&clang, "echo 'Android clang fixture'");
+        let target_env = target.replace('-', "_");
+        let command = |destination: &std::path::Path| {
+            let mut command = Command::new(env!("CARGO_BIN_EXE_skvoz-core-tools"));
+            command
+                .args(["package-android", target])
+                .arg(&library)
+                .arg(destination)
+                .env(
+                    "PATH",
+                    format!("{}:{}", bin.display(), std::env::var("PATH").unwrap()),
+                )
+                .env("SKVOZ_CORE_ANDROID_NDK", &ndk)
+                .env("SKVOZ_CORE_ANDROID_SYSROOT", &sysroot)
+                .env("SKVOZ_CORE_ANDROID_NDK_ARCHIVE", &ndk_archive)
+                .env("SKVOZ_CORE_ANDROID_STD_ARCHIVE", &std_archive)
+                .env(
+                    "RUSTFLAGS",
+                    format!(
+                        "-C link-arg=-Wl,-z,max-page-size=16384 --sysroot {}",
+                        sysroot.display()
+                    ),
+                )
+                .env(
+                    format!("CARGO_TARGET_{}_LINKER", target_env.to_uppercase()),
+                    &clang,
+                )
+                .env(format!("CC_{target_env}"), &clang)
+                .env(format!("AR_{target_env}"), ndk_bin.join("llvm-ar"))
+                .env("CARGO_INCREMENTAL", "0")
+                .env("CARGO_PROFILE_RELEASE_DEBUG", "0")
+                .env("TEST_MACHINE", profile["elf_machine"].as_str().unwrap())
+                .env(
+                    "TEST_STD_SHA256",
+                    profile["rust_std_sha256"].as_str().unwrap(),
+                )
+                .env_remove("CARGO_BUILD_JOBS")
+                .env_remove("CARGO_ENCODED_RUSTFLAGS")
+                .env_remove("SKVOZ_CORE_SOURCE_REVISION");
+            command
+        };
+        for jobs in [None, Some("4")] {
+            let destination = directory
+                .0
+                .join(format!("{target}-{}", jobs.unwrap_or("default")));
+            let mut command = command(&destination);
+            if let Some(jobs) = jobs {
+                command.env("CARGO_BUILD_JOBS", jobs);
+            }
+            let result = command.output().unwrap();
+            assert!(
+                result.status.success(),
+                "{target}, jobs={jobs:?}: {}",
+                String::from_utf8_lossy(&result.stderr)
+            );
+            let manifest: serde_json::Value =
+                serde_json::from_slice(&fs::read(destination.join("artifact.json")).unwrap())
+                    .unwrap();
+            assert_eq!(manifest["target"], target);
+            assert!(
+                manifest["android"]["build_environment"]
+                    .get("CARGO_BUILD_JOBS")
+                    .is_none()
+            );
+            assert_eq!(
+                fs::read(destination.join("lib/libskvoz_core.so")).unwrap(),
+                fs::read(&library).unwrap()
+            );
+        }
+        for name in [
+            "RUSTFLAGS",
+            "CARGO_INCREMENTAL",
+            "CARGO_PROFILE_RELEASE_DEBUG",
+        ] {
+            let destination = directory.0.join(format!("{target}-invalid-{name}"));
+            let result = command(&destination).env(name, "invalid").output().unwrap();
+            assert!(!result.status.success(), "{name} was ignored");
+            assert!(
+                String::from_utf8_lossy(&result.stderr).contains(name),
+                "{result:?}"
+            );
+            assert!(!destination.exists());
+        }
+    }
+}
+
 struct Directory(PathBuf);
 impl Directory {
     fn new(name: &str) -> Self {

@@ -58,7 +58,7 @@ fn files(root: &Path, current: &Path, list: &mut Vec<PathBuf>) -> Result<(), Err
     }
     Ok(())
 }
-fn identity(root: &Path, paths: &mut Vec<PathBuf>) -> Result<String, Error> {
+fn identity(root: &Path, paths: &mut [PathBuf]) -> Result<String, Error> {
     paths.sort();
     paths
         .iter()

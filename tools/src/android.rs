@@ -104,7 +104,6 @@ pub fn inspect(
             format!("AR_{target_env}"),
             ar.to_string_lossy().into_owned(),
         ),
-        ("CARGO_BUILD_JOBS".into(), "1".into()),
         ("CARGO_INCREMENTAL".into(), "0".into()),
         ("CARGO_PROFILE_RELEASE_DEBUG".into(), "0".into()),
     ];

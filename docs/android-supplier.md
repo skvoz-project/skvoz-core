@@ -45,6 +45,8 @@ Host Rust toolchain должен быть доступен read-only как `/to
 указывает host rustlib link подготовленного sysroot. GitHub supplier запускает
 `tools/ci-android.sh` в закреплённом Docker image с ресурсами runner, без
 локальных cgroup/I/O предпосылок; версии, target-проверки и deadlines сохраняются.
+Число Cargo jobs выбирает окружение запуска. `CARGO_BUILD_JOBS` может отсутствовать
+или задавать другой параллелизм; упаковщик не считает его частью Android-профиля.
 
 Сначала соберите host-инструмент без target `RUSTFLAGS` и подготовьте общий staging:
 
