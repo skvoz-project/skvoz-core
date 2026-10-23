@@ -104,8 +104,8 @@ sequence поверх того же wire 2. Peer-control и DATA сохраня�
 при изменении session, без автоматического discovery.
 
 Language-neutral hex vectors находятся в
-[wire-v2.tsv](../core/tests/fixtures/wire-v2.tsv), формат — в
-[README fixtures](../core/tests/fixtures/README.md).
+[wire-v2.tsv](../src/core/tests/fixtures/wire-v2.tsv), формат — в
+[README fixtures](../src/core/tests/fixtures/README.md).
 
 Dynamic NatsRuntime wraps these semantic frames in [runtime protocol3](runtime-protocol.md). Its runtime DATA profile is16KiB with metadata512bytes; the standalone codec retains the larger pure-library bound. The semantic codec version alone does not make different runtime versions compatible.
 

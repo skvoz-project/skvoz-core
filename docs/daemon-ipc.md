@@ -10,7 +10,8 @@
 ## Сборка, запуск и профиль
 
 Сначала подготовьте `CORE_ARTIFACT` по [инструкции сборки](getting-started.md).
-Из корня репозитория:
+Команды ниже выполняются из `src/` репозитория; Cargo output находится в
+`src/target/`:
 
 ```sh
 export SKVOZ_CORE_ARTIFACT="$CORE_ARTIFACT"
@@ -23,7 +24,7 @@ cargo test -p skvoz-core-binding -p skvoz-daemon --release --locked
 
 Rust-тесты проверяют конфигурацию, endpoint, IPC и бинарный runtime через
 локальный NATS с временными TLS-сертификатами и учётными данными. Нужны Linux,
-Rust1.92.0, NATS Server2.15.1 и OpenSSL; зависимости закреплены в Cargo.lock.
+Rust1.92.0, NATS Server2.15.1 и OpenSSL; зависимости закреплены в `src/Cargo.lock`.
 Python/Ruby остаются отдельными примерами IPC-клиентов; эта команда их не запускает.
 Для заранее подготовленного Cargo cache можно добавить `--offline`. IPCv1 — отдельный
 локальный протокол; актуальные DATA/control форматы Core описаны в
@@ -151,8 +152,8 @@ prefix и включает body. Valid body32..65568bytes; size проверяе
 unknown command kind, EOF в partial frame и request replay закрывают только IPC
 owner. Версия1 fixed schema; новые major versions требуют явного negotiation и
 новой спецификации. Client обязан отвергать неизвестные версии/events.
-Публичные [контрольные векторы](../daemon/tests/fixtures/README.md),
-[модуль Python](../clients/python/skvoz_ipc.py), [модуль Ruby](../clients/ruby/skvoz_ipc.rb).
+Публичные [контрольные векторы](../src/daemon/tests/fixtures/README.md),
+[модуль Python](../src/clients/python/skvoz_ipc.py), [модуль Ruby](../src/clients/ruby/skvoz_ipc.rb).
 
 Первый command HELLO; request_id nonzero и строго возрастает для всех commands.
 События имеют request0. Handle0 для session/peer commands, nonzero для stream

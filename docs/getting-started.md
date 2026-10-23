@@ -4,20 +4,22 @@
 собирает owning commit, Actions потребителя получает закреплённые архивы. Ниже
 приведена локальная сборка поставщика и проверка подготовленного artifact.
 
-Rust 1.92.0 и Cargo.lock закрепляют исходные зависимости. Для реальных TLS/NATS
+`src/rust-toolchain.toml` с Rust 1.92.0 и `src/Cargo.lock` закрепляют исходные зависимости. Для реальных TLS/NATS
 тестов нужны NATS Server 2.15.1 и OpenSSL в PATH. Доступ к производственному
-брокеру не нужен: `binding/tests/native.rs` создаёт закрытый временный каталог,
+брокеру не нужен: `src/binding/tests/native.rs` создаёт закрытый временный каталог,
 сертификаты и локальный NATS, после проверки удаляет процессы и файлы.
 
 ## Поставщик
 
 Для Linux нужны C linker, GNU `readelf` и `sha256sum`; для упаковки Android
 действуют отдельные [профили и prerequisites](android-supplier.md).
-Ниже используется стандартный `target/` Cargo. Выполняйте команды в
+Все Cargo-команды ниже выполняются из `src/`; стандартный output — `src/target/`.
+Из корня сначала перейдите в `src/`. Выполняйте команды в
 подготовленной ограниченной среде; выбирайте libc поставщика, совместимую
 с целевым окружением потребителя.
 
 ```sh
+cd src
 export CORE_ARTIFACT="$PWD/target/core-artifact"
 cargo test -p skvoz-core --no-default-features --locked
 cargo build -p skvoz-core-abi -p skvoz-core-tools --release --locked
@@ -52,32 +54,37 @@ Binding проверяет компонент, версию 5.0.0, ABI v1, targe
 `$ORIGIN/../lib`. При запуске тестовых бинарников Cargo задайте
 `LD_LIBRARY_PATH="$CORE_ARTIFACT/lib"`.
 
-`binding/tests/native.rs` проверяет реальные handshake, бинарные DATA, отказ
+`src/binding/tests/native.rs` проверяет реальные handshake, бинарные DATA, отказ
 допуска DATA, half-close, wake, отмену и проверку сертификата. Подтверждение
 потребления выполняется только после освобождения выданного буфера.
 
 ## Независимые процессы runtime
 
-`testbench/` содержит Rust-сценарии Core. Его `real-nats` сценарии
-ожидают явно подготовленную ограниченную TLS/auth fixture и переменные
-`SKVOZ_NATS_URL`, `SKVOZ_NATS_CA`, `SKVOZ_NATS_RUN_TOKEN`,
-`SKVOZ_NATS_P0_PASSWORD` и пароли участвующих peers. Fault/restart/ACL сценарии
-дополнительно требуют указанные в исходниках fixture inputs. Они не запускаются
-обычной проверкой и не подключаются к произвольному брокеру автоматически.
+`src/core/tests/{a_runtime,continuous_nats,runtime_delivery}.rs` проверяют
+NatsRuntime через локальный настоящий NATS. Обычный CI запускает их явно с
+`fault-injection`; production `nats`/ABI не содержит этих hooks. Каждый тест
+создаёт свои временные сертификаты, ACL/peer credentials и дочерний nats-server,
+управляет только его restart/reload и удаляет fixture. Внешние NATS/container и
+переменные стенда не нужны. `static_nats` отдельно проверяет публичный NatsNode.
+
+Из `src/`, с `nats-server` 2.15.1 и OpenSSL:
 
 ```sh
-cargo test -p skvoz-core --features nats --lib --locked
-cargo test -p skvoz-core --features nats --test continuous_nats --locked -- --ignored --test-threads=1
-cargo test -p skvoz-testbench --features real-nats --locked -- --test-threads=1
+cargo check -p skvoz-core --no-default-features --lib --locked
+cargo test -p skvoz-core --features fault-injection --locked -- --test-threads=1
 ```
 
-Последние две команды предназначены для соответствующей подготовленной fixture;
-наличие сценария в дереве не подтверждает его выполнение на новом artifact.
-Сценарии TCP находятся в `connectors/tcp/tests/real_nats.rs` и используют готовый
-Core через binding. Python/Ruby под `clients/` — примеры IPC consumers, а не
-язык инфраструктуры тестов.
+Весь набор поставки выполняется из корня репозитория командой
+`sh docker/local_build.sh`: native binding/TLS, daemon startup+IPC, TCP example,
+SDK/archive/release contracts и оба Android targets. Сценарии TCP принадлежат
+`src/connectors/tcp/tests/real_nats.rs` и используют готовый Core через binding.
+Python/Ruby под `src/clients/` — примеры IPC consumers, не инфраструктура тестов.
 
 ## Нагрузочный эксперимент
 
+`src/testbench/` сохраняет самостоятельные режимы demo/load/runtime-worker,
+со своими helpers, независимо от test fixture Core. Для этих режимов стенда
+требуется явно подготовленная внешняя fixture; demo/load используют NatsNode,
+а runtime-worker — NatsRuntime.
 Rust load mode в testbench является инструментом поставщика. Запускайте его
 для явно выбранной гарантии, с конечным deadline и измеренным cap ресурсов.

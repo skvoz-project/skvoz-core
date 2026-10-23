@@ -1,0 +1,15 @@
+# Keep Git metadata: release packaging checks HEAD and the clean source tree.
+**/target
+**/temp
+**/.idea
+**/.knowledge
+**/.agents
+**/.codex
+**/.aws
+**/AGENTS.md
+**/__pycache__
+**/*.py[cod]
+**/*.log
+**/*.tmp
+!.git
+!.git/**

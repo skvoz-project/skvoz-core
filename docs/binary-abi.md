@@ -80,6 +80,15 @@ candidate с `revision: null`; опубликованный release должен
 репозитория поставщика. `sdk_manifest_sha256` отдельно фиксирует `sdk/sdk.sha256`.
 SDK содержит только контракты, TLS, binding, C header и лицензию MIT.
 
+Исходники SDK находятся в `src/`, упаковщик — в `src/tools/`. Source inventory
+охватывает `.dockerignore` и деревья `src/` и `docker/` (включая `src/vendor/`).
+Workspace manifest, lock и toolchain входят один раз по путям
+`src/{Cargo.toml,Cargo.lock,rust-toolchain.toml}`; `lock_sha256` фиксирует
+`src/Cargo.lock`. Генерируемый `src/target/` исключён из source inventory.
+Сценарии testbench и IPC-примеры входят в идентичность
+исходников; их запуск не становится требованием сборки или поставки.
+Внутри SDK сохраняются каталоги `contracts/`, `tls/`, `binding/` и `include/`.
+
 Android supplier выбирает только два [явных профиля](android-supplier.md).
 Их pins и проверки упаковки не меняют ABI v1 или семантику runtime и не
 квалифицируют Android загрузку/JNI. Потребитель связывается с библиотекой своего

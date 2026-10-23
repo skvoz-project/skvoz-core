@@ -9,144 +9,29 @@ permissions:
 concurrency:
   group: core-${{ github.ref }}
   cancel-in-progress: false
+defaults:
+  run:
+    shell: sh -eu {0}
 jobs:
-  supplier-and-consumers:
+  build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Supplier and binary consumers
-        env:
-          CORE_OUTPUT: ${{ runner.temp }}/skvoz-core-output
+      - name: Build, test and export Linux and Android releases
         run: |
-          mkdir -p "$CORE_OUTPUT"
-          chmod 0777 "$CORE_OUTPUT"
-          container="core-linux-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          trap 'status=$?; sh tools/ci-cleanup.sh "$container" || status=1; exit "$status"' EXIT
-          timeout --signal=TERM --kill-after=10s 1500s docker run --rm --name "$container" \
-            --ulimit core=0 --cap-drop=ALL --security-opt=no-new-privileges:true \
-            --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/src,readonly" \
-            --mount "type=bind,src=$CORE_OUTPUT,dst=/out" \
-            --env CARGO_HOME=/out/cargo --env CARGO_TARGET_DIR=/out/target \
-            --env SKVOZ_CORE_SOURCE_REVISION="$GITHUB_SHA" \
-            --env GIT_CONFIG_COUNT=1 --env GIT_CONFIG_KEY_0=safe.directory --env GIT_CONFIG_VALUE_0=/src \
-            --env CARGO_INCREMENTAL=0 --workdir /src \
-            rust:1.92.0-bookworm@sha256:e90e846de4124376164ddfbaab4b0774c7bdeef5e738866295e5a90a34a307a2 \
-            sh -eu -c '
-              mkdir -p /out/acquire
-              curl --fail --location --output /out/acquire/nats.tar.gz https://github.com/nats-io/nats-server/releases/download/v2.15.1/nats-server-v2.15.1-linux-amd64.tar.gz
-              echo "bf5edc7b1ce98e885c368cb43a886eb148dc5d0551d99f3cf6141fb5e1954c70  /out/acquire/nats.tar.gz" | sha256sum -c -
-              tar -xzf /out/acquire/nats.tar.gz -C /out/acquire
-              install -m 0755 /out/acquire/nats-server-v2.15.1-linux-amd64/nats-server /usr/local/bin/nats-server
-              test "$(nats-server --version)" = "nats-server: v2.15.1"
-              command -v openssl
-              rustup component add rustfmt clippy
-              cargo fmt --all -- --check
-              cargo test -p skvoz-core --no-default-features --locked
-              cargo test -p skvoz-core --features nats --lib --locked
-              cargo test -p skvoz-core-contracts --features runtime,codec --release --locked
-              cargo test -p skvoz-core-abi --lib --release --locked -- --test-threads=1
-              cargo build -p skvoz-core-abi -p skvoz-core-tools --release --locked
-              /out/target/release/skvoz-core-tools package /out/target/release/libskvoz_core.so /out/artifact
-              export SKVOZ_CORE_ARTIFACT=/out/artifact LD_LIBRARY_PATH=/out/artifact/lib
-              cargo test -p skvoz-core-binding -p skvoz-daemon -p skvoz-tcp --release --locked -- --test-threads=1
-              script=$(find /out/target/release/build -path "*/skvoz-core-binding-*/build-script-build" -type f | head -n 1)
-              SKVOZ_CORE_BUILD_SCRIPT="$script" cargo test -p skvoz-core-tools --test artifact_contract --release --locked -- --ignored
-              cargo build -p skvoz-daemon --release --locked
-              mkdir -p /out/artifact/bin
-              cp /out/target/release/skvoz-core-daemon /out/artifact/bin/
-              env -u LD_LIBRARY_PATH /out/artifact/bin/skvoz-core-daemon --version
-              ldd /out/artifact/bin/skvoz-core-daemon
-              /out/target/release/skvoz-core-tools archive /out/artifact "$SKVOZ_CORE_SOURCE_REVISION" /out/release
-              cp /out/target/release/skvoz-core-tools /out/release/
-            '
+          docker buildx build --platform linux/amd64 --file docker/rust/Dockerfile --target artifacts \
+            --build-arg SOURCE_REVISION="$GITHUB_SHA" \
+            --output "type=local,dest=$RUNNER_TEMP/core-release" .
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: core-linux
-          path: ${{ runner.temp }}/skvoz-core-output/release/*
+          name: core-release
+          path: ${{ runner.temp }}/core-release/*
           if-no-files-found: error
-  android-supplier:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Pinned Android suppliers, serial targets
-        env:
-          CORE_OUTPUT: ${{ runner.temp }}/skvoz-core-android
-        run: |
-          mkdir -p "$CORE_OUTPUT"
-          chmod 0777 "$CORE_OUTPUT"
-          container="core-android-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          trap 'status=$?; sh tools/ci-cleanup.sh "$container" || status=1; exit "$status"' EXIT
-          timeout --signal=TERM --kill-after=10s 3300s docker run --rm --name "$container" \
-            --ulimit core=0 --cap-drop=ALL --security-opt=no-new-privileges:true \
-            --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/src,readonly" \
-            --mount "type=bind,src=$CORE_OUTPUT,dst=/out" \
-            --env CARGO_HOME=/out/cargo --env CARGO_TARGET_DIR=/out/target \
-            --env SKVOZ_CORE_SOURCE_REVISION="$GITHUB_SHA" \
-            --env GIT_CONFIG_COUNT=1 --env GIT_CONFIG_KEY_0=safe.directory --env GIT_CONFIG_VALUE_0=/src \
-            --workdir /src \
-            rust:1.92.0-bookworm@sha256:e90e846de4124376164ddfbaab4b0774c7bdeef5e738866295e5a90a34a307a2 \
-            sh -eu -c '
-              sh tools/ci-android.sh
-            '
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: core-android
-          path: ${{ runner.temp }}/skvoz-core-android/release/*
-          if-no-files-found: error
-  tools-contracts:
-    needs: [supplier-and-consumers, android-supplier]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          pattern: core-*
-          merge-multiple: true
-          path: ${{ runner.temp }}/core-test-inputs
-      - name: Permanent tool contracts against the three supplier outputs
-        env:
-          CORE_INPUTS: ${{ runner.temp }}/core-test-inputs
-          CORE_OUTPUT: ${{ runner.temp }}/core-test-output
-        run: |
-          mkdir -p "$CORE_OUTPUT"
-          chmod 0777 "$CORE_OUTPUT"
-          container="core-linux-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          trap 'status=$?; sh tools/ci-cleanup.sh "$container" || status=1; exit "$status"' EXIT
-          timeout --signal=TERM --kill-after=10s 600s docker run --rm --name "$container" \
-            --ulimit core=0 --cap-drop=ALL --security-opt=no-new-privileges:true \
-            --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/src,readonly" \
-            --mount "type=bind,src=$CORE_INPUTS,dst=/inputs,readonly" \
-            --mount "type=bind,src=$CORE_OUTPUT,dst=/out" \
-            --env CARGO_HOME=/out/cargo --env CARGO_TARGET_DIR=/out/target \
-            --env CARGO_INCREMENTAL=0 --workdir /src \
-            rust:1.92.0-bookworm@sha256:e90e846de4124376164ddfbaab4b0774c7bdeef5e738866295e5a90a34a307a2 \
-            sh -eu -c '
-              unset SKVOZ_CORE_SOURCE_REVISION
-              for target in x86_64-unknown-linux-gnu aarch64-linux-android x86_64-linux-android; do
-                destination="/out/fixtures/$target"
-                mkdir -p "$destination"
-                tar -xzf "/inputs/skvoz-core-5.0.0-$target.tar.gz" -C "$destination"
-              done
-              export SKVOZ_CORE_RELEASE_FIXTURES=/out/fixtures
-              export SKVOZ_CORE_ARTIFACT=/out/fixtures/x86_64-unknown-linux-gnu
-              export SKVOZ_CORE_ANDROID_ARTIFACT=/out/fixtures/x86_64-linux-android
-              cargo test -p skvoz-core-tools --bin skvoz-core-tools --release --locked
-              cargo test -p skvoz-core-tools --test export_contract --release --locked --offline -- --include-ignored
-              cargo test -p skvoz-core-tools --test release_contract --release --locked --offline -- --include-ignored
-            '
   publish:
-    needs: [tools-contracts]
+    needs: [build]
     if: github.repository == 'skvoz-project/skvoz-core' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -155,15 +40,13 @@ jobs:
     steps:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: core-*
-          merge-multiple: true
+          name: core-release
           path: ${{ runner.temp }}/core-release
-      - name: Verify complete exact-commit release and publish once
+      - name: Verify exact-commit release and publish once
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_DIRECTORY: ${{ runner.temp }}/core-release
         run: |
           chmod +x "$RELEASE_DIRECTORY/skvoz-core-tools"
-          "$RELEASE_DIRECTORY/skvoz-core-tools" checksums "$RELEASE_DIRECTORY" "$GITHUB_SHA"
           timeout --signal=TERM --kill-after=10s 480s \
             "$RELEASE_DIRECTORY/skvoz-core-tools" publish "$RELEASE_DIRECTORY" "$GITHUB_SHA"

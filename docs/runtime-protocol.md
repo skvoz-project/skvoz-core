@@ -87,7 +87,7 @@ sequenceDiagram
     B-->>A: CREDIT for the next epoch
 ```
 
-See [NATS runtime](nats-runtime.md) for budgets, source retirement, liveness and embedding. Public [golden vectors](../core/tests/fixtures/runtime-v3.tsv) define representative bytes; unit and real-NATS tests cover distinct state and I/O behavior. Local tests do not establish an Internet throughput guarantee.
+See [NATS runtime](nats-runtime.md) for budgets, source retirement, liveness and embedding. Public [golden vectors](../src/core/tests/fixtures/runtime-v3.tsv) define representative bytes; unit and real-NATS tests cover distinct state and I/O behavior. Local tests do not establish an Internet throughput guarantee.
 
 ## Terminal ownership
 

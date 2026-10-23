@@ -2,7 +2,7 @@
 
 Поддержаны два явных профиля упаковки: `aarch64-linux-android` → `arm64-v8a`
 и `x86_64-linux-android` → `x86_64`. Профили определены в
-[`tools/android-profiles.json`](../tools/android-profiles.json): Rust 1.92.0,
+[`docker/android-profiles.json`](../docker/android-profiles.json): Rust 1.92.0,
 NDK r30 revision 30.0.16248370, minimum API 31, ELF LOAD alignment 16384.
 Для обоих профилей проверены supplier cross-compile, ELF dependency closure,
 экспорт ABI v1, compile-time layout bounds и16 KiB LOAD alignment. Это scope
@@ -40,17 +40,25 @@ clang и llvm-ar. Для Core не нужны Gradle, JDK или Android SDK pla
 до4 CPU,3 GiB RAM, без swap, PID256 и один Cargo job; подготовка и каждый target
 имеют отдельный конечный deadline до900 секунд. Проверяйте фактические cgroup
 limits и cleanup, а не только параметры запуска. Пример ниже предполагает
-стандартный Cargo `target/`, подготовленный registry и абсолютные пути без пробелов.
+Cargo-команды из `src/` со стандартным output `src/target/`, подготовленный
+registry и абсолютные пути без пробелов.
 Host Rust toolchain должен быть доступен read-only как `/toolchain`: на него
-указывает host rustlib link подготовленного sysroot. GitHub supplier запускает
-`tools/ci-android.sh` в закреплённом Docker image с ресурсами runner, без
-локальных cgroup/I/O предпосылок; версии, target-проверки и deadlines сохраняются.
+указывает host rustlib link подготовленного sysroot. GitHub supplier использует
+этап `android` в [Dockerfile](../docker/rust/Dockerfile): те же `prepare-android`,
+`package-android`, pins и два последовательных target. Он наследует готовый
+общий host-упаковщик из `tools`; Linux ABI, daemon и native-тесты в эту ветку
+не входят. `--target android-artifacts` экспортирует только оба Android tree;
+[платформенные команды](releases.md#отдельные-платформенные-цели) используют тот же
+source context и точный SHA. Отдельной пересборки host-инструмента для Android нет.
+Сборка использует ресурсы runner без локальных cgroup/I/O предпосылок;
+подготовка и каждый target имеют deadline 900 секунд.
 Число Cargo jobs выбирает окружение запуска. `CARGO_BUILD_JOBS` может отсутствовать
 или задавать другой параллелизм; упаковщик не считает его частью Android-профиля.
 
 Сначала соберите host-инструмент без target `RUSTFLAGS` и подготовьте общий staging:
 
 ```sh
+cd src
 unset RUSTFLAGS CARGO_ENCODED_RUSTFLAGS
 export CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0 CARGO_PROFILE_RELEASE_DEBUG=0
 cargo build -p skvoz-core-tools --release --locked --offline
