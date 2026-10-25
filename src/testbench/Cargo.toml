@@ -10,11 +10,19 @@ publish = false
 default = []
 
 [dependencies]
-serde_json = "=1.0.151"
+skvoz-core-test-support = { path = "../test-support" }
+serde_json.workspace = true
 skvoz-core = { path = "../core", features = ["nats"] }
-async-nats = { version = "=0.50.0", default-features = false, features = ["ring"] }
-futures-util = { version = "=0.3.34", default-features = false, features = ["std"] }
-tokio = { version = "=1.53.1", features = ["macros", "rt-multi-thread", "time", "sync", "net", "io-util"] }
+async-nats = { workspace = true, default-features = false, features = ["ring"] }
+futures-util = { workspace = true, default-features = false, features = ["std"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "sync", "net", "io-util"] }
 
 [lints]
 workspace = true
+
+[[bin]]
+name = "skvoz-testbench"
+path = "main.rs"
+
+[lib]
+path = "lib.rs"

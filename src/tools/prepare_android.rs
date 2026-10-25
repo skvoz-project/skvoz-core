@@ -321,7 +321,7 @@ fn extract_std(archive: &Path, target: &str, stage: &Path) -> Result<Value, Erro
 }
 
 pub fn prepare(ndk_archive: &Path, destination: &Path) -> Result<(), Error> {
-    let pins: Value = serde_json::from_str(include_str!("../../../docker/android-profiles.json"))?;
+    let pins: Value = serde_json::from_str(include_str!("../../docker/android-profiles.json"))?;
     fs::create_dir_all(destination)?;
     for name in ["tooling.json", "ndk", "sdk", "rust-android"] {
         if fs::symlink_metadata(destination.join(name)).is_ok() {

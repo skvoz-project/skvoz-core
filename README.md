@@ -11,9 +11,9 @@ runtime и отдельный daemon с IPC v1. Один Core используе
 | `src/abi/` | Поставщик `libskvoz_core.so`, C ABI v1 |
 | `src/binding/` | Тонкий Rust consumer готовой библиотеки |
 | `src/daemon/` | Самостоятельный daemon и Unix IPC v1 |
-| `src/connectors/tcp/` | Ограниченный пример TCP relay |
+| `src/tcp/` | Ограниченный пример TCP relay |
 | `src/clients/` | Примеры IPC на Python и Ruby |
-| `src/test-support/` | Общая закрытая TLS/NATS fixture для тестов компонентов |
+| `src/test-support/` | Общая закрытая TLS/NATS fixture и настройки runtime-сценариев |
 | `src/testbench/` | Самостоятельный CLI стенда: demo, load и runtime-worker |
 | `src/include/` | Публичный C header ABI v1 |
 | `src/tools/` | Rust-инструмент упаковки SDK, библиотек и релизов с его тестами |
@@ -24,6 +24,11 @@ runtime и отдельный daemon с IPC v1. Один Core используе
 Cargo запускается оттуда и создаёт `src/target/`. Docker/Buildx запускается из
 корня репозитория. Тесты принадлежат проверяемым компонентам: engine/runtime —
 `src/core/tests/`, потребитель artifact — `src/binding/tests/`, IPC — `src/daemon/`.
+
+Собственные `.rs` лежат непосредственно в каталоге package; его `Cargo.toml`
+явно задаёт пути `lib.rs` и `main.rs`. Тесты и примеры остаются в owning
+`tests/` и `examples/`. Общие версии зависимостей заданы в
+`src/Cargo.toml`, а features и optional-зависимости выбирает каждый package.
 Экспортируемый SDK содержит `contracts/`, `tls/`, `binding/`
 и `include/` независимо от размещения исходников в репозитории.
 

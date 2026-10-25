@@ -67,26 +67,67 @@ fn identity(root: &Path, paths: &mut [PathBuf]) -> Result<String, Error> {
         .collect::<Result<Vec<_>, Error>>()
         .map(|lines| lines.join(""))
 }
+fn sdk_manifest(mut manifest: toml::Table, workspace: &toml::Table) -> Result<String, Error> {
+    for (name, value) in manifest["package"].as_table_mut().unwrap() {
+        if value.get("workspace").and_then(toml::Value::as_bool) == Some(true) {
+            *value = workspace["package"][name].clone();
+        }
+    }
+    manifest.remove("dev-dependencies");
+    for section in ["dependencies", "build-dependencies"] {
+        let Some(dependencies) = manifest
+            .get_mut(section)
+            .and_then(toml::Value::as_table_mut)
+        else {
+            continue;
+        };
+        for (name, value) in dependencies {
+            if value.get("workspace").and_then(toml::Value::as_bool) == Some(true) {
+                let mut inherited = match &workspace["dependencies"][name] {
+                    toml::Value::String(version) => {
+                        toml::Table::from_iter([("version".into(), version.clone().into())])
+                    }
+                    toml::Value::Table(dependency) => dependency.clone(),
+                    _ => return Err("invalid workspace dependency".into()),
+                };
+                let mut local = value.as_table().unwrap().clone();
+                local.remove("workspace");
+                if let Some(toml::Value::Array(mut features)) = inherited.remove("features") {
+                    if let Some(toml::Value::Array(local_features)) = local.remove("features") {
+                        features.extend(local_features);
+                    }
+                    inherited.insert("features".into(), features.into());
+                }
+                inherited.extend(local);
+                *value = inherited.into();
+            }
+        }
+    }
+    Ok(toml::to_string(&manifest)?)
+}
 fn sdk(root: &Path, target: &Path) -> Result<(), Error> {
     if target.exists() {
         return Err("SDK destination already exists".into());
     }
+    let workspace: toml::Table = fs::read_to_string(root.join("src/Cargo.toml"))?.parse()?;
+    let workspace = workspace["workspace"].as_table().unwrap();
     for package in ["contracts", "tls", "binding"] {
         let source = root.join("src").join(package);
         let destination = target.join(package);
         fs::create_dir_all(&destination)?;
-        copy_tree(&source.join("src"), &destination.join("src"))?;
-        let manifest = fs::read_to_string(source.join("Cargo.toml"))?
-            .replace("edition.workspace = true", "edition = \"2024\"")
-            .replace("rust-version.workspace = true", "rust-version = \"1.92\"")
-            .replace("license.workspace = true", "license = \"MIT\"");
+        for entry in fs::read_dir(&source)? {
+            let entry = entry?;
+            if entry.file_type()?.is_file()
+                && entry.path().extension().is_some_and(|ext| ext == "rs")
+            {
+                fs::copy(entry.path(), destination.join(entry.file_name()))?;
+            }
+        }
+        let manifest = fs::read_to_string(source.join("Cargo.toml"))?.parse()?;
         fs::write(
             destination.join("Cargo.toml"),
-            manifest.split("[dev-dependencies]").next().unwrap(),
+            sdk_manifest(manifest, workspace)?,
         )?;
-        if source.join("build.rs").exists() {
-            fs::copy(source.join("build.rs"), destination.join("build.rs"))?;
-        }
     }
     fs::copy(root.join("LICENSE"), target.join("LICENSE"))?;
     copy_tree(&root.join("src/include"), &target.join("include"))?;
@@ -226,5 +267,57 @@ fn main() -> Result<(), Error> {
         _ => {
             Err("usage: skvoz-core-tools sdk <output> | package <library> <output> | package-android <target> <library> <output> | prepare-android <ndk-zip> <shared-output> | archive <artifact> <revision> <output-directory> | checksums <release-directory> <revision> | publish <release-directory> <revision>".into())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn sdk_manifest_resolves_inheritance_without_losing_local_features() {
+        let workspace: toml::Table = r#"
+            [package]
+            edition = "2024"
+            [dependencies]
+            serde = { version = "=1.0.228", features = ["std"], default-features = false }
+        "#
+        .parse()
+        .unwrap();
+        let source = r#"
+            [package]
+            name = "consumer"
+            edition.workspace = true
+            [dependencies]
+            serde = { workspace = true, features = ["derive"], optional = true }
+            [build-dependencies]
+            serde = { workspace = true }
+            [dev-dependencies]
+            private-fixture = { path = "../private" }
+            [lib]
+            path = "lib.rs"
+        "#
+        .parse()
+        .unwrap();
+        let exported: toml::Table = super::sdk_manifest(source, &workspace)
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert_eq!(exported["package"]["edition"].as_str(), Some("2024"));
+        assert_eq!(exported["lib"]["path"].as_str(), Some("lib.rs"));
+        assert!(exported.get("dev-dependencies").is_none());
+        let dependency = &exported["dependencies"]["serde"];
+        assert_eq!(dependency["version"].as_str(), Some("=1.0.228"));
+        assert_eq!(dependency["default-features"].as_bool(), Some(false));
+        assert_eq!(dependency["optional"].as_bool(), Some(true));
+        assert_eq!(
+            dependency["features"].as_array().unwrap(),
+            &[toml::Value::from("std"), toml::Value::from("derive")]
+        );
+        assert!(dependency.get("workspace").is_none());
+        assert_eq!(
+            exported["build-dependencies"]["serde"]["features"]
+                .as_array()
+                .unwrap(),
+            &[toml::Value::from("std")]
+        );
     }
 }

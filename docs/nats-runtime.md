@@ -4,7 +4,7 @@
 Core library 5.0.0. Он добавляет authenticated join, смену peer session, проверку
 живости и восстановление транспорта для новых byte streams. Включается feature
 `nats`; HTTP/SOCKS parsing, DNS, сокеты, GUI и выдача credentials принадлежат host.
-Статический [NatsNode](../src/core/src/nats.rs) остаётся low-level adapter для
+Статический [NatsNode](../src/core/nats.rs) остаётся low-level adapter для
 статических транспортных сценариев стенда, без automatic join/recovery.
 Минимальный TCP relay использует тот же NatsRuntime/protocol3, что и приложения.
 

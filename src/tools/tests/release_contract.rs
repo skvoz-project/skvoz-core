@@ -258,7 +258,7 @@ fn exact_release_archives_and_fail_closed_publication() {
             &mock,
         )
         .env("SKVOZ_CORE_SOURCE_REVISION", COMMIT)
-        .env("MOCK_DIRTY", " M src/tools/src/main.rs")
+        .env("MOCK_DIRTY", " M src/tools/main.rs")
         .output()
         .unwrap(),
         "clean owning commit",

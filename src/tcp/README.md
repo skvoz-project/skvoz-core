@@ -2,7 +2,7 @@
 
 Экспериментальный Rust package `skvoz-tcp` в репозитории Core. Владеет одним
 TCP-сокетом и небольшими I/O буферами; использует ту же библиотеку
-[Core](../../core/README.md), что и другие коннекторы. Маршрутизация и
+[Core](../core/README.md), что и другие коннекторы. Маршрутизация и
 flow control находятся в Core.
 
 `relay_one(&mut NatsRuntime, RuntimeKey, TcpStream, Duration)` получает уже открытый
@@ -30,7 +30,7 @@ cargo test -p skvoz-core --features nats --lib --locked
 ```
 
 Перед командами задайте `SKVOZ_CORE_ARTIFACT` и `LD_LIBRARY_PATH` по
-[инструкции сборки](../../../docs/getting-started.md#потребитель). Тесты создают
+[инструкции сборки](../../docs/getting-started.md#потребитель). Тесты создают
 собственную закрытую TLS/NATS fixture; нужны NATS Server2.15.1 и OpenSSL в PATH.
 Happy path проверяет 32 768 байт запроса, FIN, затем 65 536 байт ответа и EOF.
 Остальные owning тесты проверяют настоящий socket write error и общий deadline с получением

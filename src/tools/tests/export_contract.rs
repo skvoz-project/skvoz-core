@@ -208,6 +208,29 @@ fn sdk_contains_only_consumer_inputs_and_refuses_reuse() {
         .output()
         .unwrap();
     assert!(checked.status.success(), "{checked:?}");
+    for package in ["contracts", "tls", "binding"] {
+        let exported = sdk.join(package).join("Cargo.toml");
+        assert!(!fs::read_to_string(&exported).unwrap().contains("workspace"));
+        let metadata = Command::new("cargo")
+            .args([
+                "metadata",
+                "--format-version",
+                "1",
+                "--no-deps",
+                "--locked",
+                "--offline",
+                "--manifest-path",
+            ])
+            .arg(exported)
+            .output()
+            .unwrap();
+        assert!(metadata.status.success(), "{package}: {metadata:?}");
+        let metadata: serde_json::Value = serde_json::from_slice(&metadata.stdout).unwrap();
+        assert_eq!(
+            metadata["packages"][0]["targets"][0]["src_path"],
+            sdk.join(package).join("lib.rs").to_str().unwrap()
+        );
+    }
     let output = tool(&["sdk".as_ref(), sdk.as_os_str()]);
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("SDK destination already exists"));

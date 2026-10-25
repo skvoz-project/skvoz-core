@@ -18,12 +18,12 @@ nats = ["dep:async-nats", "dep:futures-util", "dep:tokio", "dep:getrandom", "dep
 [dependencies]
 skvoz-core-contracts = { path = "../contracts" }
 skvoz-core-tls = { path = "../tls", optional = true }
-async-nats = { version = "=0.50.0", default-features = false, features = ["ring"], optional = true }
-futures-util = { version = "=0.3.34", default-features = false, features = ["std"], optional = true }
-tokio = { version = "=1.53.1", features = ["time", "sync", "macros"], optional = true }
+async-nats = { workspace = true, default-features = false, features = ["ring"], optional = true }
+futures-util = { workspace = true, default-features = false, features = ["std"], optional = true }
+tokio = { workspace = true, features = ["time", "sync", "macros"], optional = true }
 
-getrandom = { version = "=0.4.3", optional = true }
-rustls-native-certs = { version = "=0.8.4", optional = true }
+getrandom = { workspace = true, optional = true }
+rustls-native-certs = { workspace = true, optional = true }
 
 [[example]]
 name = "runtime_profile"
@@ -31,8 +31,8 @@ required-features = ["nats"]
 
 [dev-dependencies]
 skvoz-core-test-support = { path = "../test-support" }
-tokio = { version = "=1.53.1", features = ["rt", "macros", "rt-multi-thread", "time", "sync", "net", "io-util"] }
-serde_json = "=1.0.151"
+tokio = { workspace = true, features = ["rt", "macros", "rt-multi-thread", "time", "sync", "net", "io-util"] }
+serde_json.workspace = true
 
 [[test]]
 name = "a_runtime"
@@ -46,3 +46,6 @@ required-features = ["fault-injection"]
 [[test]]
 name = "static_nats"
 required-features = ["nats"]
+
+[lib]
+path = "lib.rs"

@@ -8,6 +8,25 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+/// Shared limits for the standalone workload and the native TCP relay scenarios.
+pub fn runtime_scenario_profile(mut config: RuntimeConfig) -> RuntimeConfig {
+    config.shards = 8;
+    config.subscription_capacity = 128;
+    config.join_capacity = 128;
+    config.client_capacity = 16;
+    config.max_incoming_per_turn = 64;
+    config.max_outgoing_per_turn = 32;
+    config.io_timeout = Duration::from_millis(700);
+    config.heartbeat_interval = Duration::from_millis(100);
+    config.peer_timeout = Duration::from_millis(800);
+    config.join_timeout = Duration::from_secs(5);
+    config.retry_initial = Duration::from_millis(100);
+    config.retry_max = Duration::from_secs(1);
+    config.max_retries = 8;
+    config.terminal_drain_timeout = Duration::from_secs(5);
+    config
+}
+
 pub struct Fixture {
     pub directory: PathBuf,
     pub port: u16,

@@ -1,5 +1,5 @@
 [workspace]
-members = ["core", "daemon", "connectors/tcp", "contracts", "tls", "abi", "binding", "testbench", "tools", "test-support"]
+members = ["core", "daemon", "tcp", "contracts", "tls", "abi", "binding", "testbench", "tools", "test-support"]
 resolver = "3"
 default-members = ["core", "contracts", "tls", "abi"]
 
@@ -7,6 +7,17 @@ default-members = ["core", "contracts", "tls", "abi"]
 edition = "2024"
 rust-version = "1.92"
 license = "MIT"
+
+[workspace.dependencies]
+serde = "=1.0.228"
+serde_json = "=1.0.151"
+url = "=2.5.8"
+rustls-pki-types = "=1.15.1"
+async-nats = { version = "=0.50.0", default-features = false }
+rustls-native-certs = "=0.8.4"
+futures-util = { version = "=0.3.34", default-features = false }
+tokio = "=1.53.1"
+getrandom = "=0.4.3"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

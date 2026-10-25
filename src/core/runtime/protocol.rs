@@ -152,7 +152,7 @@ mod tests {
     use super::*;
 
     fn vector(name: &str) -> Vec<u8> {
-        let row = include_str!("../../tests/fixtures/runtime-v3.tsv")
+        let row = include_str!("../tests/fixtures/runtime-v3.tsv")
             .lines()
             .find_map(|line| line.strip_prefix(&format!("{name}\t")))
             .expect("public runtime vector");

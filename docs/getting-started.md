@@ -32,6 +32,10 @@ cargo build -p skvoz-core-abi -p skvoz-core-tools --release --locked
 лицензии и source-input hashes. Это candidate до относящихся проверок.
 Инструмент `sdk "$OUTPUT"` создаёт только исходный SDK без engine в новом каталоге:
 `contracts/`, `tls/`, `binding/`, `include/`, `LICENSE` и проверяемый `sdk.sha256`.
+Исходники `.rs` находятся непосредственно в этих package-каталогах; пути в их
+`Cargo.toml` заданы явно. Экспорт раскрывает наследование workspace, поэтому
+SDK manifests самостоятельны. Cargo-потребители по-прежнему задают зависимости
+на каталоги `contracts/`, `tls/` и `binding/`.
 Упаковка фиксирует фактические `DT_NEEDED`, SONAME (или null) и требуемые GLIBC
 symbols. Linux-команда требует `libc.so.6` и реальные GLIBC version references;
 библиотека Android x86_64 отвергается до создания output. Совпадение target triple
@@ -77,7 +81,7 @@ cargo test -p skvoz-core --features fault-injection --locked -- --test-threads=1
 Весь набор поставки выполняется из корня репозитория командой
 `sh docker/local_build.sh`: native binding/TLS, daemon startup+IPC, TCP example,
 SDK/archive/release contracts и оба Android targets. Сценарии TCP принадлежат
-`src/connectors/tcp/tests/real_nats.rs` и используют готовый Core через binding.
+`src/tcp/tests/real_nats.rs` и используют готовый Core через binding.
 Python/Ruby под `src/clients/` — примеры IPC consumers, не инфраструктура тестов.
 
 ## Нагрузочный эксперимент

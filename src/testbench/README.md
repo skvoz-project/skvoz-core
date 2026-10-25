@@ -13,7 +13,7 @@ HTTP monitor использует ограниченный Rust-клиент.
 NatsRuntime. Они требуют явно подготовленной внешней fixture и не заменяют
 функциональные CI-контракты или измерения production Network/Server.
 
-Три теста TCP relay находятся в `src/connectors/tcp/tests/real_nats.rs`: это
+Три теста TCP relay находятся в `src/tcp/tests/real_nats.rs`: это
 контракт поддерживаемого bounded example, который использует готовую библиотеку
 через binding. Смешанные Network проверки принадлежат
 [skvoz-network](https://github.com/skvoz-project/skvoz-network).

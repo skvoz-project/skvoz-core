@@ -28,7 +28,7 @@ pub fn inspect(
     dependencies: &[&str],
     versions: &str,
 ) -> Result<Value, Error> {
-    let pins: Value = serde_json::from_str(include_str!("../../../docker/android-profiles.json"))?;
+    let pins: Value = serde_json::from_str(include_str!("../../docker/android-profiles.json"))?;
     let profile = &pins["targets"][target];
     if profile.is_null() {
         return Err("unsupported Core Android target".into());

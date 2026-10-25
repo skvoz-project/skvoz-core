@@ -6,14 +6,13 @@ mod api;
 mod closing;
 mod continuous;
 mod delivery;
-mod diagnostics;
 mod protocol;
 mod termination;
 pub use api::{
     Authentication, Counters, DeliveryStatus, Lifecycle, Membership, PeerStatus, RuntimeConfig,
     RuntimeError, RuntimeEvent, RuntimeKey, Status, StreamDiagnostics, Trust, verified_tls_config,
 };
-pub use diagnostics::TurnDiagnostics;
+pub use skvoz_core_contracts::TurnDiagnostics;
 
 use crate::credit::Amount;
 use crate::{
@@ -405,8 +404,7 @@ impl NatsRuntime {
             }
         });
         if let Some(name) = self.config.tls_server_name.as_deref() {
-            options =
-                options.tls_client_config(crate::runtime_tls::config(&self.config.trust, name)?);
+            options = options.tls_client_config(verified_tls_config(&self.config.trust, name)?);
         } else if let Trust::ManagedCa(ca) = &self.config.trust {
             options = options.add_root_certificates(ca.clone());
         }
