@@ -5,32 +5,39 @@ runtime и отдельный daemon с IPC v1. Один Core используе
 
 | Каталог | Назначение |
 | --- | --- |
-| `src/core/` | Sans-I/O Stream/Manager и NATS runtime поставщика |
+| `src/` | Sans-I/O Stream/Manager и NATS runtime поставщика |
 | `src/contracts/` | Общие типы, проверки профиля и формулы памяти без engine |
-| `src/tls/` | Единый проверенный TLS verifier для runtime и enrollment |
+| `src/tls_config.rs` | Единый проверенный TLS verifier для runtime и enrollment |
 | `src/abi/` | Поставщик `libskvoz_core.so`, C ABI v1 |
 | `src/binding/` | Тонкий Rust consumer готовой библиотеки |
 | `src/daemon/` | Самостоятельный daemon и Unix IPC v1 |
-| `src/tcp/` | Ограниченный пример TCP relay |
+| `src/tcp_relay.rs` | [Ограниченный пример TCP relay](docs/tcp-example.md) через готовую библиотеку |
 | `src/clients/` | Примеры IPC на Python и Ruby |
-| `src/test-support/` | Общая закрытая TLS/NATS fixture и настройки runtime-сценариев |
+| `src/nats_fixture.rs` | Общая закрытая TLS/NATS fixture и настройки runtime-сценариев |
 | `src/testbench/` | Самостоятельный CLI стенда: demo, load и runtime-worker |
-| `src/include/` | Публичный C header ABI v1 |
+| `src/skvoz_core.h` | Публичный C header ABI v1 |
 | `src/tools/` | Rust-инструмент упаковки SDK, библиотек и релизов с его тестами |
 | `docker/` | Dockerfile сборки и тестов, профили Android |
 
 Все собственные исходники, примеры и тесты находятся в `src/`; рецепты сборки — в `docker/`
 и `.github/workflows/`. Cargo workspace, lock и toolchain находятся в `src/`;
-Cargo запускается оттуда и создаёт `src/target/`. Docker/Buildx запускается из
+Пакет `skvoz-core` находится в корне этого workspace. Cargo запускается оттуда
+и создаёт `src/target/`. Docker/Buildx запускается из
 корня репозитория. Тесты принадлежат проверяемым компонентам: engine/runtime —
-`src/core/tests/`, потребитель artifact — `src/binding/tests/`, IPC — `src/daemon/`.
+`src/tests/`, потребитель artifact — `src/binding/tests/`, IPC — `src/daemon/`.
 
 Собственные `.rs` лежат непосредственно в каталоге package; его `Cargo.toml`
 явно задаёт пути `lib.rs` и `main.rs`. Тесты и примеры остаются в owning
-`tests/` и `examples/`. Общие версии зависимостей заданы в
+`tests/` и `examples/`. Приватные unit-тесты находятся в `tests/unit/` своего
+package и подключаются как дочерние модули через `cfg(test)` и `path`.
+Общие версии зависимостей заданы в
 `src/Cargo.toml`, а features и optional-зависимости выбирает каждый package.
+TLS и общий fixture/profile — обычные модули без собственных packages. TCP relay
+в `src/tcp_relay.rs` компилируется как библиотечный example пакета binding; его
+интеграционные проверки также принадлежат binding.
 Экспортируемый SDK содержит `contracts/`, `tls/`, `binding/`
-и `include/` независимо от размещения исходников в репозитории.
+и `include/` независимо от размещения исходников в репозитории. Его отдельный
+TLS manifest принадлежит `workspace.metadata.sdk.tls` в `src/Cargo.toml`.
 
 Нужен Rust 1.92.0. Зависимости закреплены в `src/Cargo.lock`; patched async-nats
 0.50.0 хранится в `src/vendor/async-nats`, его происхождение и изменения описаны
@@ -84,7 +91,7 @@ cargo build -p skvoz-core-abi -p skvoz-core-tools --release --locked
 `lib/libskvoz_core.so`. Для запуска задаётся путь загрузчика к этому же `lib/`.
 
 ```sh
-SKVOZ_CORE_ARTIFACT="$CORE_ARTIFACT" cargo build -p skvoz-daemon -p skvoz-tcp --release --locked
+SKVOZ_CORE_ARTIFACT="$CORE_ARTIFACT" cargo build -p skvoz-daemon --release --locked
 LD_LIBRARY_PATH="$CORE_ARTIFACT/lib" ./target/release/skvoz-core-daemon --help
 ```
 

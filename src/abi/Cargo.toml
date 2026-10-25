@@ -12,7 +12,7 @@ name = "skvoz_core"
 crate-type = ["cdylib"]
 
 [dependencies]
-skvoz-core = { path = "../core", features = ["nats"] }
+skvoz-core = { path = "..", features = ["nats"] }
 skvoz-core-contracts = { path = "../contracts", features = ["runtime", "codec"] }
 serde.workspace = true
 serde_json.workspace = true
@@ -22,5 +22,4 @@ tokio = { workspace = true, features = ["rt-multi-thread", "net", "time", "sync"
 unsafe_op_in_unsafe_fn = "deny"
 
 [dev-dependencies]
-skvoz-core = { path = "../core", features = ["fault-injection"] }
-skvoz-core-test-support = { path = "../test-support" }
+skvoz-core = { path = "..", features = ["fault-injection"] }

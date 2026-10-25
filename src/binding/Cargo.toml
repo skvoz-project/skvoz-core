@@ -24,9 +24,13 @@ serde_json.workspace = true
 unsafe_op_in_unsafe_fn = "deny"
 
 [dev-dependencies]
-skvoz-core-test-support = { path = "../test-support" }
-tokio = { workspace = true, features = ["rt", "macros", "time"] }
+tokio = { workspace = true, features = ["rt", "macros", "time", "net", "io-util"] }
 futures-util = { workspace = true, default-features = false, features = ["std"] }
 
 [lib]
 path = "lib.rs"
+
+[[example]]
+name = "tcp-relay"
+path = "../tcp_relay.rs"
+crate-type = ["rlib"]

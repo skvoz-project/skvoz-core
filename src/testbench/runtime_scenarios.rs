@@ -25,5 +25,5 @@ pub fn config(id: u64, case: &str) -> Result<RuntimeConfig, BenchError> {
         },
     );
     config.initiate = if id == 0 { vec![] } else { vec![PeerId(0)] };
-    Ok(skvoz_core_test_support::runtime_scenario_profile(config))
+    Ok(crate::nats_fixture::runtime_scenario_profile(config))
 }

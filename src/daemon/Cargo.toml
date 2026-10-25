@@ -24,7 +24,8 @@ path = "main.rs"
 default = []
 
 [dev-dependencies]
-skvoz-core-test-support = { path = "../test-support" }
+serde.workspace = true
+skvoz-core-contracts = { path = "../contracts", features = ["runtime", "codec"] }
 
 [[example]]
 name = "daemon-smoke"

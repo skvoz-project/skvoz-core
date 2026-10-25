@@ -560,4 +560,5 @@ pub unsafe extern "C" fn skvoz_core_v1_events(
 }
 
 #[cfg(test)]
+#[path = "tests/unit/lib.rs"]
 mod tests;

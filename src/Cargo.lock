@@ -726,10 +726,9 @@ dependencies = [
  "futures-util",
  "getrandom 0.4.3",
  "rustls-native-certs",
+ "serde",
  "serde_json",
  "skvoz-core-contracts",
- "skvoz-core-test-support",
- "skvoz-core-tls",
  "tokio",
 ]
 
@@ -741,7 +740,6 @@ dependencies = [
  "serde_json",
  "skvoz-core",
  "skvoz-core-contracts",
- "skvoz-core-test-support",
  "tokio",
 ]
 
@@ -753,7 +751,6 @@ dependencies = [
  "serde",
  "serde_json",
  "skvoz-core-contracts",
- "skvoz-core-test-support",
  "tokio",
 ]
 
@@ -765,24 +762,6 @@ dependencies = [
  "serde",
  "serde_json",
  "url",
-]
-
-[[package]]
-name = "skvoz-core-test-support"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "skvoz-core-contracts",
-]
-
-[[package]]
-name = "skvoz-core-tls"
-version = "5.0.0"
-dependencies = [
- "async-nats",
- "rustls-native-certs",
- "skvoz-core-contracts",
 ]
 
 [[package]]
@@ -798,18 +777,10 @@ name = "skvoz-daemon"
 version = "3.0.0"
 dependencies = [
  "getrandom 0.4.3",
+ "serde",
  "serde_json",
  "skvoz-core-binding",
- "skvoz-core-test-support",
- "tokio",
-]
-
-[[package]]
-name = "skvoz-tcp"
-version = "2.0.0"
-dependencies = [
- "skvoz-core-binding",
- "skvoz-core-test-support",
+ "skvoz-core-contracts",
  "tokio",
 ]
 
@@ -819,9 +790,10 @@ version = "1.2.0"
 dependencies = [
  "async-nats",
  "futures-util",
+ "serde",
  "serde_json",
  "skvoz-core",
- "skvoz-core-test-support",
+ "skvoz-core-contracts",
  "tokio",
 ]
 

@@ -130,7 +130,7 @@ Cancel, transport loss, protocol error и opening timeout отменяют не�
 Semantic fixtures используют текстовые команды и hex payloads: другая
 реализация может воспроизвести тот же сценарий. Они фиксируют поведение
 движка. Бинарные wire vectors хранятся отдельно. Формат и тестовые данные:
-[src/core/tests/fixtures](../src/core/tests/fixtures/README.md).
+[src/tests/fixtures](../src/tests/fixtures/README.md).
 
 Из каталога `src/` репозитория:
 

@@ -4,7 +4,7 @@
 Core library 5.0.0. Он добавляет authenticated join, смену peer session, проверку
 живости и восстановление транспорта для новых byte streams. Включается feature
 `nats`; HTTP/SOCKS parsing, DNS, сокеты, GUI и выдача credentials принадлежат host.
-Статический [NatsNode](../src/core/nats.rs) остаётся low-level adapter для
+Статический [NatsNode](../src/nats_node.rs) остаётся low-level adapter для
 статических транспортных сценариев стенда, без automatic join/recovery.
 Минимальный TCP relay использует тот же NatsRuntime/protocol3, что и приложения.
 
@@ -34,7 +34,7 @@ Ok(NatsRuntime::connect(config, limits).await?)
 }
 ```
 
-Компилируемый пример встраивания: [runtime_profile.rs](../src/core/examples/runtime_profile.rs).
+Компилируемый пример встраивания: [runtime_profile.rs](../src/examples/runtime_profile.rs).
 Приложение вызывает `turn` и извлекает события, прежде чем полагаться на `peer_ready`.
 `RuntimeConfig::validate_profile(limits)` проверяет профиль без I/O и возвращает
 настроенную границу транспортной нагрузки. [Отдельный демон с IPC](daemon-ipc.md)
@@ -334,7 +334,7 @@ Lane data/control subscriptions используют две общие bounded q
 ## Воспроизводимая квалификация
 
 [Первый запуск](getting-started.md#независимые-процессы-runtime) описывает прямые
-Rust-команды стенда. Обычный CI запускает `src/core/tests/` с собственными
+Rust-команды стенда. Обычный CI запускает `src/tests/` с собственными
 локальными TLS/NATS fixtures: source-сценарии
 TLS/auth/ACL, restart/rejoin, silent peer, tiny-queue overflow, replay/stale keys
 и credential revocation; их наличие не означает выполнение на новом artifact.

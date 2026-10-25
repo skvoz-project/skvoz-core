@@ -1,5 +1,6 @@
 //! Standalone fixture probe also runs on the minimum supported libc without libtest.
-use skvoz_core_test_support::{Fixture, private_json};
+#[path = "../../nats_fixture.rs"]
+mod support;
 use std::{
     fs,
     io::{Read, Write},
@@ -8,6 +9,7 @@ use std::{
     process::{Child, Command, Stdio},
     time::{Duration, Instant},
 };
+use support::{Fixture, private_json};
 struct Process(Child);
 impl Drop for Process {
     fn drop(&mut self) {

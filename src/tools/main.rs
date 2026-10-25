@@ -1,7 +1,7 @@
 //! Explicit supplier packaging; consumers never call Cargo to rebuild Core.
-mod android;
+mod android_artifact;
 #[cfg(unix)]
-mod prepare_android;
+mod android_toolchain;
 mod release;
 use std::{
     env, fs,
@@ -28,19 +28,6 @@ fn hash(path: &Path) -> Result<String, Error> {
     .next()
     .ok_or("empty digest")?
     .to_owned())
-}
-fn copy_tree(source: &Path, target: &Path) -> Result<(), Error> {
-    fs::create_dir_all(target)?;
-    for entry in fs::read_dir(source)? {
-        let entry = entry?;
-        let to = target.join(entry.file_name());
-        if entry.file_type()?.is_dir() {
-            copy_tree(&entry.path(), &to)?;
-        } else {
-            fs::copy(entry.path(), to)?;
-        }
-    }
-    Ok(())
 }
 fn files(root: &Path, current: &Path, list: &mut Vec<PathBuf>) -> Result<(), Error> {
     for entry in fs::read_dir(current)? {
@@ -74,6 +61,7 @@ fn sdk_manifest(mut manifest: toml::Table, workspace: &toml::Table) -> Result<St
         }
     }
     manifest.remove("dev-dependencies");
+    manifest.remove("example");
     for section in ["dependencies", "build-dependencies"] {
         let Some(dependencies) = manifest
             .get_mut(section)
@@ -115,22 +103,41 @@ fn sdk(root: &Path, target: &Path) -> Result<(), Error> {
         let source = root.join("src").join(package);
         let destination = target.join(package);
         fs::create_dir_all(&destination)?;
-        for entry in fs::read_dir(&source)? {
-            let entry = entry?;
-            if entry.file_type()?.is_file()
-                && entry.path().extension().is_some_and(|ext| ext == "rs")
-            {
-                fs::copy(entry.path(), destination.join(entry.file_name()))?;
+        let manifest = if package == "tls" {
+            fs::copy(root.join("src/tls_config.rs"), destination.join("lib.rs"))?;
+            workspace["metadata"]["sdk"]["tls"]
+                .as_table()
+                .unwrap()
+                .clone()
+        } else {
+            for entry in fs::read_dir(&source)? {
+                let entry = entry?;
+                if entry.file_type()?.is_file()
+                    && entry.path().extension().is_some_and(|ext| ext == "rs")
+                {
+                    fs::copy(entry.path(), destination.join(entry.file_name()))?;
+                }
+            }
+            fs::read_to_string(source.join("Cargo.toml"))?.parse()?
+        };
+        if package == "contracts" {
+            fs::create_dir_all(destination.join("tests/unit"))?;
+            for name in ["codec.rs", "diagnostics.rs"] {
+                let path = Path::new("tests/unit").join(name);
+                fs::copy(source.join(&path), destination.join(path))?;
             }
         }
-        let manifest = fs::read_to_string(source.join("Cargo.toml"))?.parse()?;
         fs::write(
             destination.join("Cargo.toml"),
             sdk_manifest(manifest, workspace)?,
         )?;
     }
     fs::copy(root.join("LICENSE"), target.join("LICENSE"))?;
-    copy_tree(&root.join("src/include"), &target.join("include"))?;
+    fs::create_dir(target.join("include"))?;
+    fs::copy(
+        root.join("src/skvoz_core.h"),
+        target.join("include/skvoz_core.h"),
+    )?;
     let mut paths = Vec::new();
     files(target, target, &mut paths)?;
     fs::write(target.join("sdk.sha256"), identity(target, &mut paths)?)?;
@@ -161,7 +168,7 @@ fn package(
         .collect();
     let versions = output("readelf", &["--version-info", library.to_str().unwrap()])?;
     let android = target
-        .map(|target| android::inspect(target, library, &header, &needed, &versions))
+        .map(|target| android_artifact::inspect(target, library, &header, &needed, &versions))
         .transpose()?;
     let glibc: Vec<_> = versions
         .split_whitespace()
@@ -260,7 +267,7 @@ fn main() -> Result<(), Error> {
         Some("checksums") if args.len() == 3 => release::checksums(Path::new(&args[1]), &args[2]),
         Some("publish") if args.len() == 3 => release::publish(Path::new(&args[1]), &args[2]),
         #[cfg(unix)]
-        Some("prepare-android") if args.len() == 3 => prepare_android::prepare(Path::new(&args[1]), Path::new(&args[2])),
+        Some("prepare-android") if args.len() == 3 => android_toolchain::prepare(Path::new(&args[1]), Path::new(&args[2])),
         Some("sdk") if args.len() == 2 => sdk(&root, Path::new(&args[1])),
         Some("package") if args.len() == 3 => package(&root, Path::new(&args[1]), Path::new(&args[2]), None),
         Some("package-android") if args.len() == 4 => package(&root, Path::new(&args[2]), Path::new(&args[3]), Some(&args[1])),
@@ -271,53 +278,5 @@ fn main() -> Result<(), Error> {
 }
 
 #[cfg(test)]
-mod tests {
-    #[test]
-    fn sdk_manifest_resolves_inheritance_without_losing_local_features() {
-        let workspace: toml::Table = r#"
-            [package]
-            edition = "2024"
-            [dependencies]
-            serde = { version = "=1.0.228", features = ["std"], default-features = false }
-        "#
-        .parse()
-        .unwrap();
-        let source = r#"
-            [package]
-            name = "consumer"
-            edition.workspace = true
-            [dependencies]
-            serde = { workspace = true, features = ["derive"], optional = true }
-            [build-dependencies]
-            serde = { workspace = true }
-            [dev-dependencies]
-            private-fixture = { path = "../private" }
-            [lib]
-            path = "lib.rs"
-        "#
-        .parse()
-        .unwrap();
-        let exported: toml::Table = super::sdk_manifest(source, &workspace)
-            .unwrap()
-            .parse()
-            .unwrap();
-        assert_eq!(exported["package"]["edition"].as_str(), Some("2024"));
-        assert_eq!(exported["lib"]["path"].as_str(), Some("lib.rs"));
-        assert!(exported.get("dev-dependencies").is_none());
-        let dependency = &exported["dependencies"]["serde"];
-        assert_eq!(dependency["version"].as_str(), Some("=1.0.228"));
-        assert_eq!(dependency["default-features"].as_bool(), Some(false));
-        assert_eq!(dependency["optional"].as_bool(), Some(true));
-        assert_eq!(
-            dependency["features"].as_array().unwrap(),
-            &[toml::Value::from("std"), toml::Value::from("derive")]
-        );
-        assert!(dependency.get("workspace").is_none());
-        assert_eq!(
-            exported["build-dependencies"]["serde"]["features"]
-                .as_array()
-                .unwrap(),
-            &[toml::Value::from("std")]
-        );
-    }
-}
+#[path = "tests/unit/sdk_manifest.rs"]
+mod tests;

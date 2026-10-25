@@ -194,7 +194,13 @@ fn sdk_contains_only_consumer_inputs_and_refuses_reuse() {
         .lines()
         .map(|line| line.split_once("  ").unwrap().1)
         .collect();
-    assert_eq!(paths.len(), 16);
+    assert_eq!(paths.len(), 18);
+    for path in [
+        "contracts/tests/unit/codec.rs",
+        "contracts/tests/unit/diagnostics.rs",
+    ] {
+        assert!(paths.contains(&path));
+    }
     assert!(paths.windows(2).all(|pair| pair[0] < pair[1]));
     assert!(paths.iter().all(|path| {
         *path == "LICENSE"
@@ -226,6 +232,13 @@ fn sdk_contains_only_consumer_inputs_and_refuses_reuse() {
             .unwrap();
         assert!(metadata.status.success(), "{package}: {metadata:?}");
         let metadata: serde_json::Value = serde_json::from_slice(&metadata.stdout).unwrap();
+        assert!(
+            metadata["packages"][0]["targets"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|target| target["kind"][0] != "example")
+        );
         assert_eq!(
             metadata["packages"][0]["targets"][0]["src_path"],
             sdk.join(package).join("lib.rs").to_str().unwrap()

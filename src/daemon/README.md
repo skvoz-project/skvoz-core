@@ -1,7 +1,7 @@
 # Демон Core SKVOZ
 
 `skvoz-core-daemon` — исполняемый файл Linux с той же универсальной
-[библиотекой Core](../core/README.md) и `NatsRuntime`. Приложения других языков
+[библиотекой Core](../README.md) и `NatsRuntime`. Приложения других языков
 используют единый локальный [IPC v1](../../docs/daemon-ipc.md) через закрытый Unix-сокет.
 Каталог содержит управление процессом, профилем, сокетом и владельцами IPC.
 
@@ -24,7 +24,7 @@ Python/Ruby. [Подготовка artifact и тестов](../../docs/getting-
 закрытой fixture: обычный `main`, без libtest, для минимальной поддерживаемой
 libc. Пример получает путь к готовому daemon аргументом; Docker tests-linux
 запускает его против собранного binary: проверяются TLS/NATS startup, IPC HELLO
-и отсутствие credentials в логах. Общая fixture остаётся в `src/test-support/`.
+и отсутствие credentials в логах. Общая fixture остаётся в `src/nats_fixture.rs`.
 
 Для своего брокера подготовьте закрытый профиль по
 [инструкции](../../docs/daemon-ipc.md#сборка-запуск-и-профиль). `SKVOZ_PROFILE`

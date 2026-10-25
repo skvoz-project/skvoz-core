@@ -1,7 +1,59 @@
+[package]
+name = "skvoz-core"
+version = "5.0.0"
+description = "Deterministic, bounded byte-stream state engine for SKVOZ"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[features]
+default = []
+fault-injection = ["nats"]
+nats = ["dep:async-nats", "dep:futures-util", "dep:tokio", "dep:getrandom", "dep:rustls-native-certs", "skvoz-core-contracts/runtime"]
+
+[dependencies]
+skvoz-core-contracts = { path = "contracts" }
+async-nats = { workspace = true, default-features = false, features = ["ring"], optional = true }
+futures-util = { workspace = true, default-features = false, features = ["std"], optional = true }
+tokio = { workspace = true, features = ["time", "sync", "macros"], optional = true }
+
+getrandom = { workspace = true, optional = true }
+rustls-native-certs = { workspace = true, optional = true }
+
+[[example]]
+name = "runtime_profile"
+required-features = ["nats"]
+
+[dev-dependencies]
+serde.workspace = true
+skvoz-core-contracts = { path = "contracts", features = ["runtime", "codec"] }
+tokio = { workspace = true, features = ["rt", "macros", "rt-multi-thread", "time", "sync", "net", "io-util"] }
+serde_json.workspace = true
+
+[[test]]
+name = "nats_runtime"
+required-features = ["fault-injection"]
+[[test]]
+name = "runtime_delivery"
+required-features = ["fault-injection"]
+[[test]]
+name = "continuous_nats"
+required-features = ["fault-injection"]
+[[test]]
+name = "static_nats"
+required-features = ["nats"]
+
+[lib]
+path = "lib.rs"
+
 [workspace]
-members = ["core", "daemon", "tcp", "contracts", "tls", "abi", "binding", "testbench", "tools", "test-support"]
+members = [".", "daemon", "contracts", "abi", "binding", "testbench", "tools"]
 resolver = "3"
-default-members = ["core", "contracts", "tls", "abi"]
+default-members = [".", "contracts", "abi"]
 
 [workspace.package]
 edition = "2024"
@@ -24,3 +76,19 @@ unsafe_code = "forbid"
 
 [patch.crates-io]
 async-nats = { path = "vendor/async-nats" }
+
+[workspace.metadata.sdk.tls.package]
+name = "skvoz-core-tls"
+version = "5.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[workspace.metadata.sdk.tls.dependencies]
+skvoz-core-contracts = { path = "../contracts", features = ["runtime"] }
+async-nats = { workspace = true, default-features = false, features = ["ring"] }
+rustls-native-certs.workspace = true
+
+[workspace.metadata.sdk.tls.lib]
+path = "lib.rs"

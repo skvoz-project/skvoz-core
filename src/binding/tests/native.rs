@@ -1,7 +1,8 @@
 //! Real native-library regression, including the INFO -> verified TLS -> CONNECT boundary.
 #![cfg(target_os = "linux")]
 use skvoz_core_binding::{CloseReason, Event, PeerId, SendOutcome, runtime::*};
-use skvoz_core_test_support as support;
+#[path = "../../nats_fixture.rs"]
+mod support;
 use std::time::{Duration, Instant};
 use support::Fixture;
 

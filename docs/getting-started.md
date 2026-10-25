@@ -34,8 +34,12 @@ cargo build -p skvoz-core-abi -p skvoz-core-tools --release --locked
 `contracts/`, `tls/`, `binding/`, `include/`, `LICENSE` и проверяемый `sdk.sha256`.
 Исходники `.rs` находятся непосредственно в этих package-каталогах; пути в их
 `Cargo.toml` заданы явно. Экспорт раскрывает наследование workspace, поэтому
-SDK manifests самостоятельны. Cargo-потребители по-прежнему задают зависимости
+SDK manifests самостоятельны. TLS экспортируется из `src/tls_config.rs`, его manifest
+задаёт `workspace.metadata.sdk.tls`; C header из `src/skvoz_core.h` попадает в
+`include/skvoz_core.h`. Локальные example targets в SDK manifests не входят. Cargo-потребители по-прежнему задают зависимости
 на каталоги `contracts/`, `tls/` и `binding/`.
+Два приватных unit-модуля contracts также входят в SDK, чтобы его собственные
+проверки компилировались независимо от workspace поставщика.
 Упаковка фиксирует фактические `DT_NEEDED`, SONAME (или null) и требуемые GLIBC
 symbols. Linux-команда требует `libc.so.6` и реальные GLIBC version references;
 библиотека Android x86_64 отвергается до создания output. Совпадение target triple
@@ -47,7 +51,7 @@ symbols. Linux-команда требует `libc.so.6` и реальные GLI
 ```sh
 export SKVOZ_CORE_ARTIFACT="$CORE_ARTIFACT"
 export LD_LIBRARY_PATH="$CORE_ARTIFACT/lib"
-cargo test -p skvoz-core-binding -p skvoz-daemon -p skvoz-tcp --release --locked
+cargo test -p skvoz-core-binding -p skvoz-daemon --release --locked
 cargo build -p skvoz-daemon --release --locked
 ```
 
@@ -64,7 +68,7 @@ Binding проверяет компонент, версию 5.0.0, ABI v1, targe
 
 ## Независимые процессы runtime
 
-`src/core/tests/{a_runtime,continuous_nats,runtime_delivery}.rs` проверяют
+`src/tests/{nats_runtime,continuous_nats,runtime_delivery}.rs` проверяют
 NatsRuntime через локальный настоящий NATS. Обычный CI запускает их явно с
 `fault-injection`; production `nats`/ABI не содержит этих hooks. Каждый тест
 создаёт свои временные сертификаты, ACL/peer credentials и дочерний nats-server,
@@ -81,7 +85,7 @@ cargo test -p skvoz-core --features fault-injection --locked -- --test-threads=1
 Весь набор поставки выполняется из корня репозитория командой
 `sh docker/local_build.sh`: native binding/TLS, daemon startup+IPC, TCP example,
 SDK/archive/release contracts и оба Android targets. Сценарии TCP принадлежат
-`src/tcp/tests/real_nats.rs` и используют готовый Core через binding.
+`src/binding/tests/tcp.rs` и используют готовый Core через binding.
 Python/Ruby под `src/clients/` — примеры IPC consumers, не инфраструктура тестов.
 
 ## Нагрузочный эксперимент

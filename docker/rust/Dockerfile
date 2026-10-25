@@ -62,7 +62,7 @@ RUN --mount=type=bind,target=/src \
     && cargo test -p skvoz-core-contracts --features runtime,codec --release --locked --offline \
     && cargo test -p skvoz-core-abi --lib --release --locked --offline -- --test-threads=1
 RUN --mount=type=bind,target=/src \
-    cargo test -p skvoz-core-binding -p skvoz-daemon -p skvoz-tcp --release --locked --offline -- --test-threads=1; \
+    cargo test -p skvoz-core-binding -p skvoz-daemon --release --locked --offline -- --test-threads=1; \
     script=$(find /out/target/release/build -path '*/skvoz-core-binding-*/build-script-build' -type f | head -n 1); \
     SKVOZ_CORE_BUILD_SCRIPT="$script" cargo test -p skvoz-core-binding --test artifact_contract --release --locked --offline -- --ignored; \
     env -u LD_LIBRARY_PATH "$SKVOZ_CORE_ARTIFACT/bin/skvoz-core-daemon" --version; \
